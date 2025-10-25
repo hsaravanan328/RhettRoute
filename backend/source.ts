@@ -22,7 +22,7 @@ export type VehicleCapacity = {
 export type ArrivalTime = {
     color: string;
     flags: {
-        showDefaultOnMap: boolean;
+        showDefaultedOnMap: boolean;
         showEstimatesOnMap: boolean;
     };
     route: {
@@ -109,7 +109,8 @@ export type RouteMap = {
 
 // Defines parser
 export function parseTime(raw: string): number {
-    const match = raw.match(/\/Date \((\d+)-\d+\)\//);
+    console.log(raw);
+    const match = raw.match(/\/Date\((\d+)(?:-\d+)?\)\//);
     if(match === null) throw new Error("No date found.");
     return +match[1]!;
 }
@@ -165,12 +166,12 @@ export async function fetchArrivalTimes(): Promise<ArrivalTime[]> {
     const arrivals = await response.json() as {
         Color: string;
         RouteDescription: string;
-        RouteID: string;
-        RouteStopID: string;
-        ShowDefaultOnMap: boolean;
+        RouteId: string;
+        RouteStopId: string;
+        ShowDefaultedOnMap: boolean;
         ShowEstimatesOnMap: boolean;
         StopDescription: string;
-        StopID: number;
+        StopId: number;
         Times: {
             EstimateTime: string;
             IsArriving: boolean;
@@ -188,24 +189,24 @@ export async function fetchArrivalTimes(): Promise<ArrivalTime[]> {
     return arrivals.map((arrival) => ({
         color: arrival.Color,
         flags: {
-            showDefaultOnMap: arrival.ShowDefaultOnMap,
+            showDefaultedOnMap: arrival.ShowDefaultedOnMap,
             showEstimatesOnMap: arrival.ShowEstimatesOnMap,
         },
         route: {
             description: arrival.RouteDescription,
-            routeID: arrival.RouteID,
-            stopID: arrival.RouteStopID,
+            routeID: arrival.RouteId,
+            stopID: arrival.RouteStopId,
         },
         stop: {
             description: arrival.StopDescription,
-            stopID: arrival.StopID,
+            stopID: arrival.StopId,
         },
         times: arrival.Times.map((time) => ({
             arrival: {
                 isArriving: time.IsArriving,
                 scheduledTime: parseTime(time.ScheduledArrivalTime),
             },
-            estimateTime: parseTime(time.EstimateTime),
+            estimateTime: time.EstimateTime === null ? -1 : parseTime(time.EstimateTime),
             departure: {
                 isDeparted: time.IsDeparted,
                 scheduledTime: parseTime(time.ScheduledDepartureTime),
@@ -220,7 +221,7 @@ export async function fetchArrivalTimes(): Promise<ArrivalTime[]> {
     }));
 }
 export async function fetchRouteMaps(): Promise<RouteMap[]> {
-    const response = await fetch("https://bu.transloc.com/Services/JSONPRelay.svc/GetStopArrivalTimes?apiKey=8882812681&routeIds=4&version=2");
+    const response = await fetch("https://bu.transloc.com/Services/JSONPRelay.svc/GetRoutesForMapWithScheduleWithEncodedLine?apiKey=8882812681&isDispatch=false");
     const routeMaps = await response.json() as {
         Description: string;
         EncodedPolyline: string;
@@ -234,7 +235,7 @@ export async function fetchRouteMaps(): Promise<RouteMap[]> {
         IsVisibleOnMap: boolean;
         Landmarks: never[];
         MapLatitude: number;
-        MapLinecolor: string;
+        MapLineColor: string;
         MapLongitude: number;
         MapZoom: number;
         Order: number;
@@ -284,7 +285,7 @@ export async function fetchRouteMaps(): Promise<RouteMap[]> {
         infoText: routeMap.InfoText,
         landmarks: [],
         map: {
-            color: routeMap.MapLinecolor,
+            color: routeMap.MapLineColor,
             position: [ routeMap.MapLatitude, routeMap.MapLongitude ],
             zoom: routeMap.MapZoom
         },
