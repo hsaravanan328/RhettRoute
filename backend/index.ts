@@ -8,7 +8,7 @@ const app = new Hono()
     .use("/*", cors())
     .get("/ping", async (context) => {
         return context.json(await upstream.consolidate());
-    })
+    });
 
 // Exports
 export default app;
