@@ -30,11 +30,6 @@ export function grabVehicles() {
     });
 }
 export function grabRoutes() {
-    console.log(arrivalTimes.map(t => t.route.routeID));
-    console.log(arrivalTimes.map(t => t.route.stopID));
-    console.log(routeMaps.map(r => r.route.routeID));
-    console.log(routeMaps.flatMap(r => r.stops.map(s => s.route.stopID)).sort((a, b) => a - b));
-    // console.log(routeMaps.map(r => r.route.));
     return arrivalTimes.map((arriveTime) => {
         const routeMap = routeMaps.find((map) => map.route.routeID === arriveTime.route.routeID);
         if(typeof routeMap === "undefined") throw new Error("No such routeID found.");
