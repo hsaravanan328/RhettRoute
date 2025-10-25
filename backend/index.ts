@@ -1,9 +1,11 @@
 // Imports
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 import * as cache from "./cache";
 
 // Defines app
 const app = new Hono()
+    .use("/*", cors())
     .get("/vehicles", (context) => {
         const results = cache.vehicles;
         return context.json(results);
