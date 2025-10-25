@@ -1,2 +1,2 @@
-# StudyBot
+# BU Shuttle
 In Progress
