@@ -27,8 +27,8 @@ export type ArrivalTime = {
     };
     route: {
         description: string;
-        routeID: string;
-        stopID: string;
+        routeID: number;
+        stopID: number;
     };
     stop: {
         description: string;
@@ -108,8 +108,7 @@ export type RouteMap = {
 };
 
 // Defines parser
-export function parseTime(raw: string): number {
-    console.log(raw);
+function parseTime(raw: string): number {
     const match = raw.match(/\/Date\((\d+)(?:-\d+)?\)\//);
     if(match === null) throw new Error("No date found.");
     return +match[1]!;
@@ -166,8 +165,8 @@ export async function fetchArrivalTimes(): Promise<ArrivalTime[]> {
     const arrivals = await response.json() as {
         Color: string;
         RouteDescription: string;
-        RouteId: string;
-        RouteStopId: string;
+        RouteId: number;
+        RouteStopId: number;
         ShowDefaultedOnMap: boolean;
         ShowEstimatesOnMap: boolean;
         StopDescription: string;

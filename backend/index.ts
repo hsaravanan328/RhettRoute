@@ -1,24 +1,29 @@
 // Imports
 import { Hono } from "hono";
-import * as source from "./source";
-
-// Defines sources
-let mapVehiclePoints = await source.fetchMapVehiclePoints();
-let vehicleCapacities = await source.fetchVehicleCapacities();
-let arrivalTimes = await source.fetchArrivalTimes();
-let routeMaps = await source.fetchRouteMaps();
-setInterval(async () => {
-    mapVehiclePoints = await source.fetchMapVehiclePoints();
-    vehicleCapacities = await source.fetchVehicleCapacities();
-    arrivalTimes = await source.fetchArrivalTimes();
-    routeMaps = await source.fetchRouteMaps();
-}, 5 * 60 * 1000);
+import * as cache from "./cache";
 
 // Defines app
 const app = new Hono()
-    .get("/hello", (context) => {
-        return context.text("world");
-    });
+    .get("/vehicles", (context) => {
+        const results = cache.vehicles;
+        return context.json(results);
+    })
+    .get("/vehicle/:vehicleID", (context) => {
+        const vehicleID = context.req.param("vehicleID");
+        const result = cache.vehicles.find((vehicle) => vehicle.id === +vehicleID);
+        if(typeof result === "undefined") return context.text("Not found.", 404);
+        return context.json(result);
+    })
+    .get("/routes", (context) => {
+        const results = cache.routes;
+        return context.json(results);
+    })
+    .get("/route/:routeID", (context) => {
+        const routeID = context.req.param("routeID");
+        const result = cache.routes.find((route) => route.id === +routeID);
+        if(typeof result === "undefined") return context.text("Not found.", 404);
+        return context.json(result);
+    })
 
 // Exports
 export default app;
