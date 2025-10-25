@@ -82,4 +82,4 @@ setInterval(async () => {
     routeMaps = await resource.fetchRouteMaps();
     vehicles = grabVehicles();
     routes = grabRoutes();
-}, 5 * 60 * 1000);
+}, 5 * 1000);
