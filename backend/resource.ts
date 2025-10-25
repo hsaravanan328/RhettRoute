@@ -161,7 +161,7 @@ export async function fetchVehicleCapacities(): Promise<VehicleCapacity[]> {
     }));
 }
 export async function fetchArrivalTimes(): Promise<ArrivalTime[]> {
-    const response = await fetch("https://bu.transloc.com/Services/JSONPRelay.svc/GetStopArrivalTimes?apiKey=8882812681&routeIds=4&version=2");
+    const response = await fetch("https://bu.transloc.com/Services/JSONPRelay.svc/GetStopArrivalTimes?apiKey=8882812681&version=2");
     const arrivals = await response.json() as {
         Color: string;
         RouteDescription: string;
@@ -203,18 +203,18 @@ export async function fetchArrivalTimes(): Promise<ArrivalTime[]> {
         times: arrival.Times.map((time) => ({
             arrival: {
                 isArriving: time.IsArriving,
-                scheduledTime: parseTime(time.ScheduledArrivalTime),
+                scheduledTime: time.ScheduledArrivalTime === null ? -1 : parseTime(time.ScheduledArrivalTime),
             },
             estimateTime: time.EstimateTime === null ? -1 : parseTime(time.EstimateTime),
             departure: {
                 isDeparted: time.IsDeparted,
-                scheduledTime: parseTime(time.ScheduledDepartureTime),
+                scheduledTime: time.ScheduledDepartureTime === null ? -1 : parseTime(time.ScheduledDepartureTime),
             },
             onTimeStatus: time.OnTimeStatus,
-            scheduledTime: parseTime(time.ScheduledTime),
+            scheduledTime: time.ScheduledTime === null ? -1 : parseTime(time.ScheduledTime),
             seconds: time.Seconds,
             text: time.Text,
-            time: parseTime(time.Time),
+            time: time.Time === null ? -1 : parseTime(time.Time),
             vehicleID: time.VehicleID
         }))
     }));
