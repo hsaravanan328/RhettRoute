@@ -13,18 +13,26 @@ interface StopSheetProps {
   onToggleFavorite: () => void;
 }
 
-export function StopSheet({ stop, arrivals, routes, isFavorite, onClose, onToggleFavorite }: StopSheetProps) {
+export function StopSheet({
+  stop,
+  arrivals,
+  routes,
+  isFavorite,
+  onClose,
+  onToggleFavorite,
+}: StopSheetProps) {
   if (!stop) return null;
 
   const stopArrivals = arrivals
-    .filter(a => a.stopId === stop.id)
+    .filter((a) => a.stopId === stop.id)
     .sort((a, b) => a.minutes - b.minutes);
 
-  const getRoute = (routeId: string) => routes.find(r => r.id === routeId);
+  const getRoute = (routeId: string) => routes.find((r) => r.id === routeId);
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-50 animate-slide-up">
-      <div className="bg-white rounded-t-2xl shadow-2xl max-h-[70vh] overflow-hidden flex flex-col border-t-4 border-[#CC0000]">
+    <div className="fixed bottom-0 left-0 right-0 z-50 flex justify-center animate-slide-up">
+      {/* ✅ Centered Card Container */}
+      <div className="w-full max-w-[430px] bg-white rounded-t-2xl shadow-2xl max-h-[70vh] overflow-hidden flex flex-col border-t-4 border-[#CC0000]">
         {/* Header */}
         <div className="p-4 border-b">
           <div className="flex items-start justify-between gap-3">
@@ -33,7 +41,9 @@ export function StopSheet({ stop, arrivals, routes, isFavorite, onClose, onToggl
                 <MapPin className="w-5 h-5 text-[#CC0000]" />
               </div>
               <div className="flex-1">
-                <h2>{stop.name}</h2>
+                <h2 className="text-base font-semibold leading-tight break-words">
+                  {stop.name}
+                </h2>
                 <div className="flex items-center gap-2 mt-2 flex-wrap">
                   {stop.accessible && (
                     <Badge variant="outline" className="gap-1">
@@ -50,14 +60,19 @@ export function StopSheet({ stop, arrivals, routes, isFavorite, onClose, onToggl
                 </div>
               </div>
             </div>
-            <div className="flex gap-2">
+
+            <div className="flex gap-1">
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={onToggleFavorite}
                 className="flex-shrink-0"
               >
-                <Star className={`w-5 h-5 ${isFavorite ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+                <Star
+                  className={`w-5 h-5 ${
+                    isFavorite ? 'fill-yellow-400 text-yellow-400' : ''
+                  }`}
+                />
               </Button>
               <Button
                 variant="ghost"
@@ -74,7 +89,9 @@ export function StopSheet({ stop, arrivals, routes, isFavorite, onClose, onToggl
         {/* Transfers */}
         {stop.transfers && stop.transfers.length > 0 && (
           <div className="px-4 py-3 bg-blue-50 border-b">
-            <p className="text-sm text-muted-foreground mb-1">Transfers available</p>
+            <p className="text-sm text-muted-foreground mb-1">
+              Transfers available
+            </p>
             <div className="flex flex-wrap gap-1.5">
               {stop.transfers.map((transfer, idx) => (
                 <Badge key={idx} variant="secondary" className="text-xs">
@@ -88,10 +105,11 @@ export function StopSheet({ stop, arrivals, routes, isFavorite, onClose, onToggl
         {/* Arrivals */}
         <div className="flex-1 overflow-y-auto">
           <div className="p-4">
-            <h3 className="mb-3 flex items-center gap-2">
+            <h3 className="mb-3 flex items-center gap-2 font-semibold text-gray-800">
               <Clock className="w-4 h-4" />
               Upcoming Arrivals
             </h3>
+
             <div className="space-y-3">
               {stopArrivals.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-8 text-center">
@@ -116,7 +134,7 @@ export function StopSheet({ stop, arrivals, routes, isFavorite, onClose, onToggl
                             />
                           </div>
                           <div>
-                            <p>{route.name}</p>
+                            <p className="font-medium text-gray-900">{route.name}</p>
                             <p className="text-sm text-muted-foreground">
                               {arrival.isLive ? 'Live tracking' : 'Scheduled'}
                             </p>
@@ -125,18 +143,22 @@ export function StopSheet({ stop, arrivals, routes, isFavorite, onClose, onToggl
                         <div className="text-right">
                           <div className="flex items-center gap-1.5">
                             {arrival.isLive && (
-                              <span 
+                              <span
                                 className="w-2 h-2 rounded-full animate-pulse"
                                 style={{ backgroundColor: route.color }}
                               />
                             )}
-                            <p className="tabular-nums">
-                              {arrival.minutes < 1 ? 'Now' : `${arrival.minutes} min`}
+                            <p className="tabular-nums text-gray-800 font-medium">
+                              {arrival.minutes < 1
+                                ? 'Now'
+                                : `${arrival.minutes} min`}
                             </p>
                           </div>
                         </div>
                       </div>
-                      {idx < stopArrivals.length - 1 && <Separator className="mt-3" />}
+                      {idx < stopArrivals.length - 1 && (
+                        <Separator className="mt-3" />
+                      )}
                     </div>
                   );
                 })

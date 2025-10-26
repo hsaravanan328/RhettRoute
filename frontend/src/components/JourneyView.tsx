@@ -4,12 +4,12 @@ import { Footprints, Bus } from "lucide-react";
 interface JourneyViewProps {
   journey: {
     totalDuration: number | string;
-    totalDistance: string;
+    totalDistance: string; // keep as km
     destinationName?: string;
     segments: {
       type: string;
       title: string;
-      distance?: string;
+      distance?: string; // km for bus, plain for walk
       duration?: string;
       boardAt?: string;
       getOffAt?: string;
@@ -17,6 +17,15 @@ interface JourneyViewProps {
   };
   onClose: () => void;
 }
+
+// 🔹 helper: convert only for bus segments
+const convertKmToMi = (kmString?: string) => {
+  if (!kmString) return "";
+  const km = parseFloat(kmString);
+  if (isNaN(km)) return kmString;
+  const miles = km * 0.621371;
+  return `${miles.toFixed(2)} mi`;
+};
 
 export const JourneyView: React.FC<JourneyViewProps> = ({ journey, onClose }) => {
   if (!journey) return null;
@@ -38,7 +47,7 @@ export const JourneyView: React.FC<JourneyViewProps> = ({ journey, onClose }) =>
       {/* Summary */}
       <div className="p-4 space-y-4">
         <div className="text-center text-gray-600 mb-2">
-          🕒 {journey.totalDuration} min · {journey.totalDistance} km total
+          🕒 {journey.totalDuration} min · {journey.totalDistance} total
         </div>
 
         {/* Segments */}
@@ -50,7 +59,6 @@ export const JourneyView: React.FC<JourneyViewProps> = ({ journey, onClose }) =>
             segment.type === "walk" &&
             segment.title.toLowerCase().includes("stop")
           ) {
-            // look ahead to next segment (bus)
             const nextSegment = journey.segments[idx + 1];
             if (nextSegment?.boardAt) {
               segmentTitle = `Walk to ${nextSegment.boardAt}`;
@@ -86,7 +94,10 @@ export const JourneyView: React.FC<JourneyViewProps> = ({ journey, onClose }) =>
                   <span className="font-medium">{segmentTitle}</span>
                 </div>
                 <span className="text-sm text-gray-500">
-                  {segment.duration || "—"} • {segment.distance || ""}
+                  {segment.duration || "—"} •{" "}
+                  {segment.type === "bus"
+                    ? convertKmToMi(segment.distance) // ✅ bus only in miles
+                    : segment.distance || ""}
                 </span>
               </div>
 
