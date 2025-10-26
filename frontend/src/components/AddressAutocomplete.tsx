@@ -45,7 +45,18 @@ export const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
       value={value}
       onChange={e => onChange(e.target.value)}
       placeholder={placeholder || 'Enter a destination...'}
-      className="w-full bg-white text-black"
+      className="
+        bg-white border border-gray-300
+        text-black placeholder:text-gray-600
+        focus:ring-2 focus:ring-[#CC0000] focus:outline-none
+        !text-black placeholder:!text-gray-600
+      "
+      style={{
+        color: '#000',
+        backgroundColor: '#fff',
+        WebkitTextFillColor: '#000', // prevents Chrome autofill white text
+        caretColor: '#000',
+      }}
     />
   );
 };

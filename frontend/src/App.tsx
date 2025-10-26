@@ -18,6 +18,7 @@ import {
 } from './types';
 import { Badge } from './components/ui/badge';
 import { planJourney } from './lib/journeyPlanner';
+import { text } from 'stream/consumers';
 
 type TabType = 'map' | 'routes' | 'favorites' | 'alerts';
 
@@ -196,26 +197,40 @@ export default function App() {
         console.warn('⚠️ No geometry found for selected place.');
         return;
       }
-
+  
       if (!routes?.length || !stops?.length) {
         alert('Data is still loading. Please try again in a few seconds.');
         return;
       }
-
+  
       if (!userLocation) {
         alert('User location not available yet. Please enable location.');
         return;
       }
-
+  
       const destination = { lat: dest.lat(), lng: dest.lng() };
       console.log('🗺 Planning journey to:', destination);
+  
       const journeyPlan = await planJourney(userLocation, destination, routes, stops);
-      setJourney(journeyPlan);
+  
+      // ✅ Extract only main location name (e.g. "40 Malvern Street")
+      let destinationName = place.name || '';
+      if (!destinationName && place.formatted_address) {
+        destinationName = place.formatted_address.split(',')[0]; // only first part before comma
+      }
+  
+      setJourney({
+        ...journeyPlan,
+        destinationName: destinationName || 'Destination',
+      });
+  
     } catch (err) {
       console.error('Error planning journey:', err);
       alert('Could not plan your journey. Please try again.');
     }
   };
+  
+  
 
   // --- Derived lists ---
   const filteredRoutes = routes.filter(r =>
@@ -277,7 +292,7 @@ export default function App() {
         </div>
 
         {(activeTab === 'routes' || activeTab === 'map') && (
-          <AddressAutocomplete
+          <AddressAutocomplete style={{textColor: 'black'}}
             value={searchQuery}
             onChange={setSearchQuery}
             placeholder="Search destination..."
