@@ -1,4 +1,5 @@
 import { AlertCircle, Info, AlertTriangle } from 'lucide-react';
+import React from 'react';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { ServiceAlert, BusRoute } from '../types';
 import { Badge } from './ui/badge';

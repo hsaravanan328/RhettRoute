@@ -3,6 +3,7 @@ import { Search, X, MapPin, Bus } from 'lucide-react';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { Stop, BusRoute } from '../types';
+import React from 'react';
 
 interface SearchResult {
   type: 'stop' | 'route';
