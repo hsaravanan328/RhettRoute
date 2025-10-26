@@ -1,11 +1,11 @@
-import React, { useEffect, useRef } from "react";
-import { Input } from "./ui/input";
+import React, { useEffect, useRef } from 'react';
+import { Input } from './ui/input';
 
 interface AddressAutocompleteProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
-  onSelectAddress: (result: { address: string; lat: number; lng: number }) => void;
+  onSelectAddress: (place: google.maps.places.PlaceResult) => void;
 }
 
 export const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
@@ -14,48 +14,38 @@ export const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
   placeholder,
   onSelectAddress,
 }) => {
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      if (window.google?.maps?.places) {
-        clearInterval(interval);
-  
-        const input = inputRef.current;
-        if (!input) return;
-  
-        const autocomplete = new google.maps.places.Autocomplete(input, {
-          fields: ["formatted_address", "geometry", "name"],
-          types: ["geocode"],
-        });
-  
-        autocomplete.addListener("place_changed", () => {
-          const place = autocomplete.getPlace();
-          if (!place.geometry) return;
-          onSelectAddress({
-            address: place.formatted_address!,
-            lat: place.geometry.location!.lat(),
-            lng: place.geometry.location!.lng(),
-          });
-        });
+    if (!window.google || !window.google.maps) return;
+    if (!inputRef.current) return;
+
+    const autocomplete = new google.maps.places.Autocomplete(inputRef.current, {
+      fields: ['geometry', 'formatted_address', 'name'], // ✅ ensure geometry is returned
+      types: ['geocode'], // restricts to addresses
+    });
+
+    autocomplete.addListener('place_changed', () => {
+      const place = autocomplete.getPlace();
+      if (!place.geometry) {
+        console.warn('⚠️ No geometry found for selected place.');
+        return;
       }
-    }, 300); // check every 300ms
-  
-    return () => clearInterval(interval);
-  }, []);
-  
+      onSelectAddress(place);
+    });
+
+    return () => {
+      google.maps.event.clearInstanceListeners(autocomplete);
+    };
+  }, [onSelectAddress]);
 
   return (
-    <div className="relative w-full">
-      <Input
-        ref={inputRef}
-        type="text"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder || "Search destination..."}
-        className="bg-white text-black shadow-sm focus:ring-2 focus:ring-[#CC0000]"
-      />
-    </div>
+    <Input
+      ref={inputRef}
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      placeholder={placeholder || 'Enter a destination...'}
+      className="w-full bg-white text-black"
+    />
   );
 };

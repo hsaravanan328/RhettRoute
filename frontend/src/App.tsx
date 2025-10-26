@@ -7,13 +7,22 @@ import { FavoritesView } from './components/FavoritesView';
 import { AlertsView } from './components/AlertsView';
 import { AddressAutocomplete } from './components/AddressAutocomplete';
 import { JourneyView } from './components/JourneyView';
-import { Stop, FavoriteStop, BusRoute, Journey, Arrival, BusLocation, ServiceAlert } from './types';
+import {
+  Stop,
+  FavoriteStop,
+  BusRoute,
+  Journey,
+  Arrival,
+  BusLocation,
+  ServiceAlert,
+} from './types';
 import { Badge } from './components/ui/badge';
 import { planJourney } from './lib/journeyPlanner';
 
 type TabType = 'map' | 'routes' | 'favorites' | 'alerts';
 
 export default function App() {
+  // --- Core app state ---
   const [activeTab, setActiveTab] = useState<TabType>('map');
   const [selectedRoute, setSelectedRoute] = useState<string | null>(null);
   const [selectedStop, setSelectedStop] = useState<Stop | null>(null);
@@ -36,9 +45,10 @@ export default function App() {
       setIsLoading(true);
       setError(null);
       try {
+        console.log('Fetching routes and vehicles...');
         const [vehiclesRes, routesRes] = await Promise.all([
           fetch('http://localhost:3000/vehicles'),
-          fetch('http://localhost:3000/routes')
+          fetch('http://localhost:3000/routes'),
         ]);
 
         if (!vehiclesRes.ok || !routesRes.ok) {
@@ -48,7 +58,7 @@ export default function App() {
         const vehiclesJson = await vehiclesRes.json();
         const routesJson = await routesRes.json();
 
-        // 1️⃣ Build routes from backend (using polygon.shape for map)
+        // ✅ Build unique route list
         const uniqueRoutes = new Map<string, BusRoute>();
         routesJson.forEach((item: any) => {
           const id = String(item.id);
@@ -56,22 +66,22 @@ export default function App() {
             uniqueRoutes.set(id, {
               id,
               name: item.description ?? `Route ${id}`,
-              color: item.color ?? '#888',
+              color: item.color ?? '#CC0000',
               bgColor: '#EEE',
               textColor: '#111',
               description: item.description ?? '',
               active: true,
-              // ✅ Include the backend polyline shape for GoogleMapView
               polygon: item.polygon ?? null,
             });
           }
         });
         setRoutes(Array.from(uniqueRoutes.values()));
 
-        // 2️⃣ Build stops with real lat/lng (stop.position)
+        // ✅ Build stops
         const uniqueStops = new Map<string, Stop>();
         routesJson.forEach((item: any) => {
-          const stopId = String(item.stop.id);
+          const stopId = String(item.stop?.id ?? '');
+          if (!stopId) return;
           const pos = item.stop?.position;
 
           if (!uniqueStops.has(stopId)) {
@@ -92,32 +102,7 @@ export default function App() {
         });
         setStops(Array.from(uniqueStops.values()));
 
-        // 3️⃣ Build arrivals (use estimated → arrival → scheduled)
-        const now = Date.now();
-        const arrivalsList: Arrival[] = [];
-        routesJson.forEach((item: any) => {
-          const stopIdStr = String(item.stop.id);
-          item.schedule.forEach((t: any) => {
-            const ts =
-              (t.estimated && t.estimated > 0 ? t.estimated : 0) ||
-              (t.arrival && t.arrival > 0 ? t.arrival : 0) ||
-              (t.scheduled && t.scheduled > 0 ? t.scheduled : 0);
-            if (!ts) return;
-
-            const minutes = Math.max(0, Math.round((ts - now) / 60000));
-            arrivalsList.push({
-              routeId: String(item.id),
-              stopId: stopIdStr,
-              minutes,
-              status: t.status,
-              vehicleId: String(t.vehicle?.id ?? ''),
-              rawTime: ts,
-            });
-          });
-        });
-        setArrivals(arrivalsList);
-
-        // 4️⃣ Build bus locations (with occupancy percentage)
+        // ✅ Build bus locations
         const locations: BusLocation[] = vehiclesJson.map((v: any) => {
           const cap = v.seats?.capacity ?? 0;
           const occ = v.seats?.occupied ?? 0;
@@ -140,7 +125,7 @@ export default function App() {
         });
         setBusLocations(locations);
 
-        // 5️⃣ Example alert
+        // ✅ Add a default alert
         setServiceAlerts([
           {
             id: 'alert-1',
@@ -152,8 +137,13 @@ export default function App() {
           },
         ]);
 
+        console.log('✅ Data loaded:', {
+          routes: uniqueRoutes.size,
+          stops: uniqueStops.size,
+          buses: locations.length,
+        });
       } catch (err) {
-        console.error("Error fetching data:", err);
+        console.error('Error fetching data:', err);
         setError(err instanceof Error ? err.message : 'Unknown error');
       } finally {
         setIsLoading(false);
@@ -161,22 +151,23 @@ export default function App() {
     };
 
     fetchData();
-    // Optional: Refresh every 30 seconds
-    // const interval = setInterval(fetchData, 30000);
-    // return () => clearInterval(interval);
   }, []);
 
   // --- Get user location ---
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        pos => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-        err => console.warn("Geolocation denied:", err.message)
+        pos => {
+          const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          setUserLocation(coords);
+          console.log('📍 User location detected:', coords);
+        },
+        err => console.warn('Geolocation denied:', err.message)
       );
     }
   }, []);
 
-  // --- UI Handlers ---
+  // --- Handle stop selection ---
   const handleStopClick = (stop: Stop) => {
     setSelectedStop(stop);
     if (journey) setJourney(null);
@@ -197,21 +188,34 @@ export default function App() {
   const handleRemoveFavorite = (stopId: string, routeId: string) =>
     setFavorites(favorites.filter(f => !(f.stopId === stopId && f.routeId === routeId)));
 
-  const handleSelectAddress = async (result: { address: string; lat: number; lng: number }) => {
-    const newJourney = await planJourney(
-      { lat: result.lat, lng: result.lng, address: result.address },
-      stops,
-      routes,
-      userLocation
-    );
-  
-    if (newJourney) {
-      setJourney(newJourney);
-      setActiveTab('map');
-      if (selectedStop) setSelectedStop(null);
+  // --- Handle selecting an address ---
+  const handleSelectAddress = async (place: google.maps.places.PlaceResult) => {
+    try {
+      const dest = place.geometry?.location;
+      if (!dest) {
+        console.warn('⚠️ No geometry found for selected place.');
+        return;
+      }
+
+      if (!routes?.length || !stops?.length) {
+        alert('Data is still loading. Please try again in a few seconds.');
+        return;
+      }
+
+      if (!userLocation) {
+        alert('User location not available yet. Please enable location.');
+        return;
+      }
+
+      const destination = { lat: dest.lat(), lng: dest.lng() };
+      console.log('🗺 Planning journey to:', destination);
+      const journeyPlan = await planJourney(userLocation, destination, routes, stops);
+      setJourney(journeyPlan);
+    } catch (err) {
+      console.error('Error planning journey:', err);
+      alert('Could not plan your journey. Please try again.');
     }
   };
-  
 
   // --- Derived lists ---
   const filteredRoutes = routes.filter(r =>
@@ -223,7 +227,7 @@ export default function App() {
     : [];
   const activeAlerts = serviceAlerts.filter(a => a.severity !== 'info');
 
-  // --- Loading / Error States ---
+  // --- Loading UI ---
   if (isLoading) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-background max-w-[430px] mx-auto">
@@ -235,6 +239,7 @@ export default function App() {
     );
   }
 
+  // --- Error UI ---
   if (error) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-background max-w-[430px] mx-auto p-4">
@@ -259,7 +264,7 @@ export default function App() {
               <span className="text-2xl font-bold text-[#CC0000]">BU</span>
             </div>
             <div>
-              <h1 className="text-white">BU Bus</h1>
+              <h1 className="text-white font-semibold">BU Bus</h1>
               <p className="text-sm text-white/90">Real-time tracking</p>
             </div>
           </div>
@@ -275,13 +280,13 @@ export default function App() {
           <AddressAutocomplete
             value={searchQuery}
             onChange={setSearchQuery}
-            placeholder="Search address or stop..."
+            placeholder="Search destination..."
             onSelectAddress={handleSelectAddress}
           />
         )}
       </div>
 
-      {/* Main Content */}
+      {/* Main content */}
       <div className="flex-1 overflow-hidden">
         {activeTab === 'map' && (
           <GoogleMapView
@@ -296,38 +301,40 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'routes' && (
-          <div className="h-full overflow-y-auto p-4 space-y-3">
-            {filteredRoutes.map(route => (
-              <RouteCard
-                key={route.id}
-                route={route}
-                arrivals={arrivals}
-                onClick={() => {
-                  setSelectedRoute(route.id);
-                  setActiveTab('map');
-                }}
-              />
-            ))}
-            {searchQuery && filteredStops.length > 0 && (
-              <>
-                <h3 className="mt-6 mb-3">Matching Stops</h3>
-                {filteredStops.map(stop => (
-                  <div
-                    key={stop.id}
-                    className="p-4 border rounded-lg cursor-pointer hover:bg-accent transition-colors"
-                    onClick={() => handleStopClick(stop)}
-                  >
-                    <p>{stop.name}</p>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {stop.routeIds.length} route{stop.routeIds.length !== 1 ? 's' : ''}
-                    </p>
-                  </div>
-                ))}
-              </>
-            )}
+{activeTab === 'routes' && (
+  <div className="h-full overflow-y-auto p-4 space-y-3">
+    {filteredRoutes.map(route => (
+      <RouteCard
+        key={route.id}
+        route={route}
+        arrivals={arrivals}
+        onClick={() => {
+          setSelectedRoute(route.id);
+          setActiveTab('map');
+        }}
+      />
+    ))}
+
+    {searchQuery && filteredStops.length > 0 && (
+      <>
+        <h3 className="mt-6 mb-3 font-semibold">Matching Stops</h3>
+        {filteredStops.map(stop => (
+          <div
+            key={stop.id}
+            className="p-4 border rounded-lg cursor-pointer hover:bg-accent transition-colors"
+            onClick={() => handleStopClick(stop)}
+          >
+            <p>{stop.name}</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {stop.routeIds.length} route{stop.routeIds.length !== 1 ? 's' : ''}
+            </p>
           </div>
-        )}
+        ))}
+      </>
+    )}
+  </div>
+)}
+
 
         {activeTab === 'favorites' && (
           <FavoritesView
@@ -343,12 +350,10 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'alerts' && (
-          <AlertsView alerts={serviceAlerts} routes={routes} />
-        )}
+        {activeTab === 'alerts' && <AlertsView alerts={serviceAlerts} routes={routes} />}
       </div>
 
-      {/* Bottom Navigation */}
+      {/* Bottom nav */}
       <div className="bg-white border-t-2 border-[#CC0000]/20 px-2 py-2 flex-shrink-0 shadow-lg">
         <div className="flex justify-around">
           {[
@@ -376,10 +381,8 @@ export default function App() {
         </div>
       </div>
 
-      {/* Journey and Stop Views */}
-      {journey && (
-        <JourneyView journey={journey} onClose={() => setJourney(null)} />
-      )}
+      {/* Overlays */}
+      {journey && <JourneyView journey={journey} onClose={() => setJourney(null)} />}
       {selectedStop && !journey && (
         <StopSheet
           stop={selectedStop}

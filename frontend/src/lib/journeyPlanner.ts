@@ -1,130 +1,118 @@
-/// <reference types="@types/google.maps" />
+import type { Stop, Route } from "../types";
 
-import { Journey, JourneySegment, Stop, BusRoute } from "../types";
-import { waitForGoogleMaps } from "./waitForGoogleMaps";
-
-export async function planJourney(
-  destination: { lat: number; lng: number; address: string },
-  stops: Stop[],
-  routes: BusRoute[],
-  userLocation: { lat: number; lng: number } | null
-): Promise<Journey | null> {
-  if (!userLocation) return null;
-
-  // Find the nearest stop to user
-  const nearestStart = findNearestStop(userLocation, stops);
-  const nearestEnd = findNearestStop(destination, stops);
-
-  // Use the first active route connecting them
-  const commonRoute = routes.find(r =>
-    nearestStart.routeIds.includes(r.id) && nearestEnd.routeIds.includes(r.id)
-  );
-  if (!commonRoute) return null;
-
-  // Get walking distances using Google Directions API
-  const walkToStop = await getWalkingInfo(userLocation, {
-    lat: nearestStart.lat,
-    lng: nearestStart.lng,
-  });
-
-  const walkToDest = await getWalkingInfo(
-    { lat: nearestEnd.lat, lng: nearestEnd.lng },
-    destination
-  );
-
-  // Build segments
-  const segments: JourneySegment[] = [
-    {
-      type: "walk",
-      from: userLocation,
-      to: { lat: nearestStart.lat, lng: nearestStart.lng },
-      distance: walkToStop.distanceText,
-      duration: walkToStop.durationText,
-    },
-    {
-      type: "bus",
-      route: commonRoute,
-      fromStop: nearestStart,
-      toStop: nearestEnd,
-      distance: "—",
-      duration: "—",
-    },
-    {
-      type: "walk",
-      from: { lat: nearestEnd.lat, lng: nearestEnd.lng },
-      to: destination,
-      distance: walkToDest.distanceText,
-      duration: walkToDest.durationText,
-    },
-  ];
-
-  return {
-    destination,
-    segments,
-    totalDistance: walkToStop.distanceText + " + " + walkToDest.distanceText,
-    totalDuration: walkToStop.durationText + " + " + walkToDest.durationText,
-  };
+declare global {
+  interface Window {
+    google: any;
+  }
 }
 
-// --- Helper: nearest stop ---
+interface WalkingInfo {
+  distance: number; // km
+  duration: number; // min
+  textDistance: string;
+  textDuration: string;
+}
+
+export async function getWalkingInfo(
+  origin: { lat: number; lng: number },
+  destination: { lat: number; lng: number }
+): Promise<WalkingInfo> {
+  try {
+    const directionsService = new google.maps.DirectionsService();
+
+    const result = await directionsService.route({
+      origin,
+      destination,
+      travelMode: google.maps.TravelMode.WALKING,
+    });
+
+    const leg = result?.routes?.[0]?.legs?.[0];
+    if (!leg) throw new Error("No walking leg found");
+
+    const distanceVal = leg.distance?.value ?? 0; // meters
+    const durationVal = leg.duration?.value ?? 0; // seconds
+
+    return {
+      distance: distanceVal / 1000,
+      duration: durationVal / 60,
+      textDistance: leg.distance?.text || `${(distanceVal / 1000).toFixed(2)} km`,
+      textDuration: leg.duration?.text || `${Math.round(durationVal / 60)} min`,
+    };
+  } catch (err) {
+    console.warn("⚠️ Walking info failed", err);
+    return { distance: 0, duration: 0, textDistance: "0 km", textDuration: "0 min" };
+  }
+}
+
 function findNearestStop(
-  point: { lat: number; lng: number },
-  stops: Stop[]
-): Stop {
-  let minDist = Infinity;
+  stops: Stop[],
+  point: { lat: number; lng: number }
+): Stop | null {
+  if (!Array.isArray(stops) || stops.length === 0) return null;
   let nearest = stops[0];
-  stops.forEach(stop => {
-    const d = haversineDistance(point, { lat: stop.lat, lng: stop.lng });
+  let minDist = Number.MAX_VALUE;
+
+  for (const stop of stops) {
+    const d = Math.hypot(stop.lat - point.lat, stop.lng - point.lng);
     if (d < minDist) {
       minDist = d;
       nearest = stop;
     }
-  });
+  }
   return nearest;
 }
 
-// --- Haversine fallback ---
-function haversineDistance(a: any, b: any): number {
-  const R = 6371;
-  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
-  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
-  const lat1 = (a.lat * Math.PI) / 180;
-  const lat2 = (b.lat * Math.PI) / 180;
-  const val =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.atan2(Math.sqrt(val), Math.sqrt(1 - val));
-}
+export async function planJourney(
+  userLocation: { lat: number; lng: number },
+  destination: { lat: number; lng: number },
+  routes: Route[],
+  stops: Stop[]
+) {
+  console.log("🗺 Planning journey...");
+  const nearestStart = findNearestStop(stops, userLocation);
+  const nearestEnd = findNearestStop(stops, destination);
 
-// --- Google Directions API call ---
-async function getWalkingInfo(
-  origin: { lat: number; lng: number },
-  destination: { lat: number; lng: number }
-): Promise<{ distanceText: string; durationText: string; durationMins: number }> {
-  await waitForGoogleMaps();
-  const service = new google.maps.DirectionsService();
+  if (!nearestStart || !nearestEnd) {
+    console.error("No valid stops found");
+    return null;
+  }
 
-  return new Promise((resolve) => {
-    service.route(
+  const walkToStart = await getWalkingInfo(userLocation, nearestStart);
+  const walkFromEnd = await getWalkingInfo(nearestEnd, destination);
+
+  // Assume 2–3 min average bus time between adjacent stops for demo
+  const busDuration = 3; // min placeholder
+  const busDistance = 1; // km placeholder
+
+  const totalDuration =
+    (walkToStart.duration || 0) + busDuration + (walkFromEnd.duration || 0);
+  const totalDistance =
+    (walkToStart.distance || 0) + busDistance + (walkFromEnd.distance || 0);
+
+  return {
+    totalDuration: Math.round(totalDuration),
+    totalDistance: totalDistance.toFixed(2),
+    segments: [
       {
-        origin,
-        destination,
-        travelMode: google.maps.TravelMode.WALKING,
+        type: "walk",
+        title: "Walk to Stop",
+        distance: walkToStart.textDistance,
+        duration: walkToStart.textDuration,
       },
-      (result, status) => {
-        if (status === "OK" && result?.routes?.[0]?.legs?.[0]) {
-          const leg = result.routes[0].legs[0];
-          resolve({
-            distanceText: leg.distance?.text || "—",
-            durationText: leg.duration?.text || "—",
-            durationMins: leg.duration?.value ? leg.duration.value / 60 : 0, // convert seconds→mins
-          });
-        } else {
-          console.warn("Directions API failed:", status);
-          resolve({ distanceText: "—", durationText: "—", durationMins: 0 });
-        }
-      }
-    );
-  });
+      {
+        type: "bus",
+        title: "Take Night Line",
+        boardAt: nearestStart.name,
+        getOffAt: nearestEnd.name,
+        distance: `${busDistance.toFixed(1)} km`,
+        duration: `${busDuration} min`,
+      },
+      {
+        type: "walk",
+        title: "Walk to Destination",
+        distance: walkFromEnd.textDistance,
+        duration: walkFromEnd.textDuration,
+      },
+    ],
+  };
 }
-
