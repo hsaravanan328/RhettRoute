@@ -47,7 +47,7 @@ export const JourneyView: React.FC<JourneyViewProps> = ({ journey, onClose }) =>
       {/* Summary */}
       <div className="p-4 space-y-4">
         <div className="text-center text-gray-600 mb-2">
-          🕒 {journey.totalDuration} min · {journey.totalDistance} total
+          🕒 {journey.totalDuration} min · {journey.totalDistance} mi
         </div>
 
         {/* Segments */}
