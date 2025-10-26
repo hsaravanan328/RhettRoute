@@ -101,7 +101,7 @@ export async function planJourney(
       },
       {
         type: "bus",
-        title: "Take Night Line",
+        title: "Take the Bus",
         boardAt: nearestStart.name,
         getOffAt: nearestEnd.name,
         distance: `${busDistance.toFixed(1)} km`,
