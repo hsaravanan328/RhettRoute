@@ -90,7 +90,7 @@ export function GoogleMapView({
       initMap();
     } else {
       const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyDbhimP254_j3k1lcwKJuDUqy-cYcJ6u8Q&libraries=places`;      
+      script.src = `https://maps.googleapis.com/maps/api/js?key="YOUR_API_KEY"&libraries=places`;      
       script.async = true;
       script.defer = true;
       script.onload = initMap;
